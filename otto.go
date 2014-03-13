@@ -171,8 +171,10 @@ package otto
 
 import (
 	"fmt"
-	"github.com/robertkrimen/otto/registry"
 	"strings"
+
+	"github.com/robertkrimen/otto/parser"
+	"github.com/robertkrimen/otto/registry"
 )
 
 // Otto is the representation of the JavaScript runtime. Each instance of Otto has a self-contained namespace.
@@ -220,7 +222,7 @@ func Run(source string) (*Otto, Value, error) {
 // If the runtime is unable to parse source, then this function will return undefined and the parse error (nothing
 // will be evaluated in this case).
 func (self Otto) Run(source string) (Value, error) {
-	return self.runtime.runSafe(source)
+	return self.runtime.run(source)
 }
 
 // Get the value of the top-level binding of the given name.
@@ -302,8 +304,9 @@ func (self Otto) Call(source string, this interface{}, argumentList ...interface
 		value := UndefinedValue()
 		fallback := false
 		err := catchPanic(func() {
-			programNode := mustParse(source + "()")
-			if callNode, valid := programNode.Body[0].(*_callNode); valid {
+			// FIXME
+			programNode := mustParse(self.runtime.parse(source + "()"))
+			if callNode, valid := programNode.Body[0].(*parser.ExpressionStatement).Expression.(*parser.CallExpression); valid {
 				value = self.runtime.evaluateCall(callNode, argumentList)
 			} else {
 				fallback = true
@@ -359,7 +362,7 @@ func (self Otto) Call(source string, this interface{}, argumentList ...interface
 // If there is an error (like the source does not result in an object), then
 // nil and an error is returned.
 func (self Otto) Object(source string) (*Object, error) {
-	value, err := self.runtime.runSafe(source)
+	value, err := self.runtime.run(source)
 	if err != nil {
 		return nil, err
 	}
